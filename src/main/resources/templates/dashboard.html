@@ -141,7 +141,7 @@
         <table id="tx-table">
             <thead><tr>
                 <th>ID</th><th>From</th><th>To</th><th>Amount</th>
-                <th>Status</th><th>Bridge</th><th>Hops</th><th>Settled</th>
+                <th>Status</th><th>Reason</th><th>Bridge</th><th>Hops</th><th>Settled</th>
             </tr></thead>
             <tbody></tbody>
         </table>
@@ -190,6 +190,7 @@ async function refresh() {
             <td>${t.id}</td><td>${t.senderVpa}</td><td>${t.receiverVpa}</td>
             <td class="balance">₹${parseFloat(t.amount).toFixed(2)}</td>
             <td class="status-${t.status}">${t.status}</td>
+            <td style="color: #ff7b72; font-weight: 500;">${t.rejectionReason || '-'}</td>
             <td>${t.bridgeNodeId}</td><td>${t.hopCount}</td>
             <td class="small">${new Date(t.settledAt).toLocaleTimeString()}</td>
         </tr>

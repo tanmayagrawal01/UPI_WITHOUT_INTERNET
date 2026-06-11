@@ -49,10 +49,16 @@ public class SettlementService {
             throw new IllegalArgumentException("Amount must be positive");
         }
 
+        // Validate PIN
+        if (!sender.getPinHash().equalsIgnoreCase(instruction.getPinHash())) {
+            log.warn("Incorrect PIN for sender: {}", sender.getVpa());
+            return recordRejected(instruction, packetHash, bridgeNodeId, hopCount, "INVALID_PIN");
+        }
+
         if (sender.getBalance().compareTo(amount) < 0) {
             log.warn("Insufficient balance: {} has ₹{}, tried to send ₹{}",
                     sender.getVpa(), sender.getBalance(), amount);
-            return recordRejected(instruction, packetHash, bridgeNodeId, hopCount);
+            return recordRejected(instruction, packetHash, bridgeNodeId, hopCount, "INSUFFICIENT_BALANCE");
         }
 
         sender.setBalance(sender.getBalance().subtract(amount));
@@ -80,7 +86,7 @@ public class SettlementService {
     }
 
     private Transaction recordRejected(PaymentInstruction instruction, String packetHash,
-                                       String bridgeNodeId, int hopCount) {
+                                       String bridgeNodeId, int hopCount, String reason) {
         Transaction tx = new Transaction();
         tx.setPacketHash(packetHash);
         tx.setSenderVpa(instruction.getSenderVpa());
@@ -91,6 +97,7 @@ public class SettlementService {
         tx.setBridgeNodeId(bridgeNodeId);
         tx.setHopCount(hopCount);
         tx.setStatus(Transaction.Status.REJECTED);
+        tx.setRejectionReason(reason);
         return transactions.save(tx);
     }
 }

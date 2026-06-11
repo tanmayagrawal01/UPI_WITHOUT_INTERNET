@@ -5,6 +5,8 @@ import com.demo.upimesh.crypto.ServerKeyHolder;
 import com.demo.upimesh.model.MeshPacket;
 import com.demo.upimesh.model.PaymentInstruction;
 import com.demo.upimesh.model.AccountRepository;
+import com.demo.upimesh.model.Transaction;
+import com.demo.upimesh.model.TransactionRepository;
 import com.demo.upimesh.service.BridgeIngestionService;
 import com.demo.upimesh.service.DemoService;
 import com.demo.upimesh.service.IdempotencyService;
@@ -30,6 +32,7 @@ class IdempotencyConcurrencyTest {
     @Autowired private BridgeIngestionService bridge;
     @Autowired private IdempotencyService idempotency;
     @Autowired private AccountRepository accounts;
+    @Autowired private TransactionRepository txRepo;
     @Autowired private HybridCryptoService crypto;
     @Autowired private ServerKeyHolder serverKey;
 
@@ -107,5 +110,30 @@ class IdempotencyConcurrencyTest {
         assertEquals(original.getReceiverVpa(), decrypted.getReceiverVpa());
         assertEquals(0, original.getAmount().compareTo(decrypted.getAmount()));
         assertEquals(original.getNonce(), decrypted.getNonce());
+    }
+
+    @Test
+    void correctPinSettlesSuccessfully() throws Exception {
+        MeshPacket packet = demoService.createPacket(
+                "alice@demo", "bob@demo", new BigDecimal("50.00"), "1234", 5);
+
+        BridgeIngestionService.IngestResult r = bridge.ingest(packet, "bridge-x", 1);
+        assertEquals("SETTLED", r.outcome());
+        assertNotNull(r.transactionId());
+    }
+
+    @Test
+    void incorrectPinIsRejectedWithInvalidPinReason() throws Exception {
+        // Alice PIN is 1234. We pass 9999.
+        MeshPacket packet = demoService.createPacket(
+                "alice@demo", "bob@demo", new BigDecimal("50.00"), "9999", 5);
+
+        BridgeIngestionService.IngestResult r = bridge.ingest(packet, "bridge-x", 1);
+        assertEquals("SETTLED", r.outcome());
+        assertNotNull(r.transactionId());
+
+        Transaction tx = txRepo.findById(r.transactionId()).orElseThrow();
+        assertEquals(Transaction.Status.REJECTED, tx.getStatus());
+        assertEquals("INVALID_PIN", tx.getRejectionReason());
     }
 }
